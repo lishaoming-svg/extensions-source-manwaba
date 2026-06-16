@@ -1,5 +1,5 @@
 ext {
-    extName = '包子漫画'
+    extName = 'Baozi'
     extClass = '.Baozi'
     extVersionCode = 7
     isNsfw = false

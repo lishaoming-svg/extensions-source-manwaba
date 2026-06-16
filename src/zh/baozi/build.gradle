@@ -9,8 +9,7 @@ ext {
     isNsfw = false
 }
 
-apply from: "$rootDir/common.gradle"
-
+apply plugin: "kei.plugins.extension.legacy"
 dependencies {
     implementation(libs.kotlinx.serialization.json)
 }

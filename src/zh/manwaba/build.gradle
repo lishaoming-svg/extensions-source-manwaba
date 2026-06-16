@@ -1,5 +1,5 @@
 ext {
-    extName = '漫蛙吧'
+    extName = 'ManWaBa'
     extClass = '.ManWaBa'
     extVersionCode = 1
     isNsfw = true

@@ -1,0 +1,17 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
+
+ext {
+    extName = '包子漫画'
+    pkgNameSuffix = 'zh.baozi'
+    extClass = '.Baozi'
+    extVersionCode = 7
+    isNsfw = false
+}
+
+apply from: "$rootDir/common.gradle"
+
+dependencies {
+    implementation(libs.kotlinx.serialization.json)
+}

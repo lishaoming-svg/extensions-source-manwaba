@@ -1,3 +1,39 @@
+bash
+cat > /home/claude/EHentai.kt << 
+'KOTLIN_EOF'
+package eu.kanade.tachiyomi.extension.zh.ehpanda
+
+import android.app.Application
+import android.content.SharedPreferences
+import androidx.preference.ListPreference
+import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.source.ConfigurableSource
+import eu.kanade.tachiyomi.source.model.Filter
+import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.asJsoup
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import okhttp3.Headers
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import org.jsoup.nodes.Document
+import rx.Observable
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class EHentai : HttpSource(), ConfigurableSource {
 

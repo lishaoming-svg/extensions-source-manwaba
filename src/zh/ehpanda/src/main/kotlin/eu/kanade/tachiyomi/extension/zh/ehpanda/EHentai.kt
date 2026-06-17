@@ -1,6 +1,3 @@
-bash
-cat > /home/claude/EHentai.kt << 
-'KOTLIN_EOF'
 package eu.kanade.tachiyomi.extension.zh.ehpanda
 
 import android.app.Application
@@ -20,9 +17,11 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.content
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -451,7 +450,5 @@ class EHentai : HttpSource(), ConfigurableSource {
     }
 
     // okhttp3.HttpUrl 辅助扩展
-    private fun String.toHttpUrlOrThrow() = okhttp3.HttpUrl.Companion.get(this)
+    private fun String.toHttpUrlOrThrow() = toHttpUrl()
 }
-KOTLIN_EOF
-echo "done"

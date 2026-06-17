@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.zh.ehpanda
 
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import android.app.Application
 import android.content.SharedPreferences
 import androidx.preference.ListPreference
@@ -20,7 +21,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -52,7 +52,7 @@ class EHentai : HttpSource(), ConfigurableSource {
 
     private val apiUrl: String
         get() = if (domain == DOMAIN_EX) "https://exhentai.org/api.php"
-                else "https://api.e-hentai.org/api.php"
+        else "https://api.e-hentai.org/api.php"
 
     // 运行时缓存（对应 JS apiKey / uid / token）
     private var cachedApiKey: String? = null
@@ -66,7 +66,7 @@ class EHentai : HttpSource(), ConfigurableSource {
                 val req = chain.request()
                 val existing = req.header("Cookie") ?: ""
                 val merged = if ("nw=1" in existing) existing
-                             else "$existing; nw=1".trimStart(';', ' ')
+                else "$existing; nw=1".trimStart(';', ' ')
                 chain.proceed(req.newBuilder().header("Cookie", merged).build())
             }.build()
     }
@@ -305,7 +305,7 @@ class EHentai : HttpSource(), ConfigurableSource {
             author        = uploader
             status        = SManga.COMPLETED
             genre         = (listOf(category) + doc.select("div#taglist div").map { it.text() })
-                            .joinToString(", ")
+                .joinToString(", ")
             description   = buildString {
                 if (subtitle != null) appendLine("副标题：$subtitle")
                 appendLine("分类：$category")
@@ -449,5 +449,5 @@ class EHentai : HttpSource(), ConfigurableSource {
     }
 
     // okhttp3.HttpUrl 辅助扩展
-    private fun String.toHttpUrlOrThrow() = toHttpUrl()
+    private fun String.toHttpUrlOrThrow() = this.toHttpUrl()
 }

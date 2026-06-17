@@ -1,0 +1,16 @@
+// 放在 tachiyomi-extensions/src/en/ehentai/build.gradle
+ext {
+    extName        = 'E-Hentai'
+    pkgNameSuffix  = 'en.ehentai'
+    extClass       = '.EHentai'
+    extVersionCode = 1
+    containsNsfw   = true
+}
+
+apply from: "$rootDir/common.gradle"
+
+dependencies {
+    // kotlinx-serialization-json 用于解析 EH API 返回的 JSON
+    // 如果 common.gradle 已统一引入则无需重复
+    // implementation(libs.kotlinx.serialization.json)
+}

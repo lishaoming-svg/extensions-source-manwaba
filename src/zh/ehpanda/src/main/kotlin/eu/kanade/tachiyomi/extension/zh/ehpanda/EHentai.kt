@@ -62,11 +62,8 @@ class EHentai :
     override val baseUrl: String get() = "https://$domain"
 
     private val apiUrl: String
-        get() = if (domain == DOMAIN_EX) {
-            "https://exhentai.org/api.php"
-        } else {
-            "https://api.e-hentai.org/api.php"
-        }
+        get() = if (domain == DOMAIN_EX) "https://exhentai.org/api.php"
+                else "https://api.e-hentai.org/api.php"
 
     private var cachedApiKey: String? = null
     private var cachedUid: String? = null
@@ -91,9 +88,7 @@ class EHentai :
     private fun mergeCookieHeader(current: String): String {
         val parts = current.split(';').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
         fun has(name: String) = parts.any { it.substringBefore('=').trim() == name }
-        fun add(name: String, value: String) {
-            if (value.isNotEmpty() && !has(name)) parts.add("$name=$value")
-        }
+        fun add(name: String, value: String) { if (value.isNotEmpty() && !has(name)) parts.add("$name=$value") }
         // 登录 cookie 表站里站都注入：让 EH 识别登录态，My Tags 标签屏蔽才会在表站生效
         add("ipb_member_id", ipbMemberId)
         add("ipb_pass_hash", ipbPassHash)
@@ -114,15 +109,74 @@ class EHentai :
         return Pair(seg.getOrElse(4) { "" }, seg.getOrElse(5) { "" })
     }
 
+    // 内置常用词（联网失败时的后备）
+    private val builtinTagMap = mapOf(
+        "中文" to "language:chinese", "日文" to "language:japanese", "英文" to "language:english",
+        "全彩" to "full color", "无码" to "uncensored", "NTR" to "netorare",
+        "触手" to "tentacles", "群交" to "group", "强奸" to "rape", "近亲" to "incest",
+    )
+
+    // 完整标签翻译词库：中文 → "namespace:english"
+    @Volatile
+    private var fullTagMap: Map<String, String>? = null
+
+    /**
+     * 加载标签翻译词库：从扩展内置资源读取（不联网）
+     * 词库文件 tag_translations.json 打包在 src/main/resources/ 下
+     * 格式：{"中文":"namespace:english", ...}
+     */
+    private fun loadTagMap(): Map<String, String> {
+        fullTagMap?.let { return it }
+        try {
+            val stream = javaClass.getResourceAsStream("/tag_translations.json")
+            if (stream != null) {
+                val jsonStr = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                val obj = Json.parseToJsonElement(jsonStr).jsonObject
+                val map = HashMap<String, String>(obj.size)
+                obj.forEach { (cn, en) ->
+                    val v = en.jsonPrimitive.content
+                    if (v.isNotEmpty()) map[cn] = v
+                }
+                if (map.isNotEmpty()) {
+                    fullTagMap = map
+                    return map
+                }
+            }
+        } catch (_: Exception) {
+            // 读取失败，回退内置常用词
+        }
+        return builtinTagMap
+    }
+
+    /**
+     * 把搜索词里的中文标签转成 EH 英文标签
+     * 只读已加载的词库（fetchSearchManga 已确保加载完成）
+     */
     private fun translateTags(query: String): String {
         if (query.isBlank()) return query
+        val map = fullTagMap ?: builtinTagMap
+        // 整个 query 正好是一个中文标签 → 直接转
+        map[query.trim()]?.let { return it }
+        // 否则子串替换（长词优先，避免「全彩」被「彩」误伤）
         var t = query
-        mapOf(
-            "中文" to "chinese", "日文" to "japanese", "英文" to "english",
-            "全彩" to "full color", "无码" to "uncensored", "NTR" to "netorare",
-            "触手" to "tentacles", "群交" to "group", "强奸" to "rape", "近亲" to "incest",
-        ).forEach { (cn, en) -> t = t.replace(cn, en, ignoreCase = true) }
+        map.entries.sortedByDescending { it.key.length }.forEach { (cn, en) ->
+            if (t.contains(cn)) t = t.replace(cn, en)
+        }
         return t
+    }
+
+    // 重写 fetchSearchManga：在后台线程预加载词库（读内置资源，很快）
+    override fun fetchSearchManga(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): Observable<MangasPage> {
+        return Observable.fromCallable {
+            loadTagMap()
+            page
+        }.flatMap {
+            super.fetchSearchManga(page, query, filters)
+        }
     }
 
     /** 修正图片 URL */
@@ -151,9 +205,10 @@ class EHentai :
      * 例如：["language:english", "female:rape", "parody:blue archive", ...]
      * 注意：title 属性里就是完整的 "namespace:tag" 格式
      */
-    private fun Element.extractAllTags(): List<String> = select("div.gt, div.gtl").mapNotNull {
-        it.attr("title").trim().lowercase().takeIf { t -> t.isNotEmpty() }
-    }
+    private fun Element.extractAllTags(): List<String> =
+        select("div.gt, div.gtl").mapNotNull {
+            it.attr("title").trim().lowercase().takeIf { t -> t.isNotEmpty() }
+        }
 
     /**
      * 判断某个画廊的标签集合是否命中黑名单
@@ -261,7 +316,8 @@ class EHentai :
         return list
     }
 
-    private fun extractNextUrl(doc: Document): String? = doc.selectFirst("a#dnext")?.absUrl("href")?.takeIf { it.isNotBlank() }
+    private fun extractNextUrl(doc: Document): String? =
+        doc.selectFirst("a#dnext")?.absUrl("href")?.takeIf { it.isNotBlank() }
 
     private fun checkBodyValid(body: String) {
         if (body.trim().isEmpty()) throw Exception("空响应，请检查登录或网络")
@@ -422,14 +478,12 @@ class EHentai :
         val date = runCatching {
             SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse(time)?.time ?: 0L
         }.getOrDefault(0L)
-        return listOf(
-            SChapter.create().apply {
-                url = response.request.url.toString()
-                name = "Gallery"
-                date_upload = date
-                chapter_number = 1f
-            },
-        )
+        return listOf(SChapter.create().apply {
+            url = response.request.url.toString()
+            name = "Gallery"
+            date_upload = date
+            chapter_number = 1f
+        })
     }
 
     // ── Page List ─────────────────────────────────────────────────────────────
@@ -499,17 +553,16 @@ class EHentai :
 
     // ── Filters ───────────────────────────────────────────────────────────────
     private class CategoryCheckBox(name: String) : Filter.CheckBox(name, true)
-    private class CategoryFilter :
-        Filter.Group<CategoryCheckBox>(
-            "分类",
-            listOf(
-                CategoryCheckBox("Misc"), CategoryCheckBox("Doujinshi"),
-                CategoryCheckBox("Manga"), CategoryCheckBox("Artist CG"),
-                CategoryCheckBox("Game CG"), CategoryCheckBox("Image Set"),
-                CategoryCheckBox("Cosplay"), CategoryCheckBox("Asian Porn"),
-                CategoryCheckBox("Non-H"), CategoryCheckBox("Western"),
-            ),
-        )
+    private class CategoryFilter : Filter.Group<CategoryCheckBox>(
+        "分类",
+        listOf(
+            CategoryCheckBox("Misc"), CategoryCheckBox("Doujinshi"),
+            CategoryCheckBox("Manga"), CategoryCheckBox("Artist CG"),
+            CategoryCheckBox("Game CG"), CategoryCheckBox("Image Set"),
+            CategoryCheckBox("Cosplay"), CategoryCheckBox("Asian Porn"),
+            CategoryCheckBox("Non-H"), CategoryCheckBox("Western"),
+        ),
+    )
     private class MinStarsFilter : Filter.Select<String>("最低评分", arrayOf("<无>", "1", "2", "3", "4", "5"))
     private class LanguageFilter : Filter.Select<String>("语言", arrayOf("<无>", "chinese", "english", "japanese"))
 
@@ -532,25 +585,22 @@ class EHentai :
         }.also(screen::addPreference)
 
         EditTextPreference(screen.context).apply {
-            key = PREF_IPB_MEMBER_ID
-            title = "ipb_member_id"
+            key = PREF_IPB_MEMBER_ID; title = "ipb_member_id"
             summary = "浏览器登录 ExHentai 后复制此 Cookie 值"
         }.also(screen::addPreference)
         EditTextPreference(screen.context).apply {
-            key = PREF_IPB_PASS_HASH
-            title = "ipb_pass_hash"
+            key = PREF_IPB_PASS_HASH; title = "ipb_pass_hash"
             summary = "浏览器登录 ExHentai 后复制此 Cookie 值"
         }.also(screen::addPreference)
         EditTextPreference(screen.context).apply {
-            key = PREF_IGNEOUS
-            title = "igneous"
+            key = PREF_IGNEOUS; title = "igneous"
             summary = "浏览器登录 ExHentai 后复制此 Cookie 值（最重要）"
         }.also(screen::addPreference)
         EditTextPreference(screen.context).apply {
-            key = PREF_TAG_BLACKLIST
-            title = "标签屏蔽 (逗号分隔)"
+            key = PREF_TAG_BLACKLIST; title = "标签屏蔽 (逗号分隔)"
             summary = "英文标签，如: rape, incest, male:dark skin。浏览页和搜索都会过滤"
         }.also(screen::addPreference)
+
     }
 
     companion object {

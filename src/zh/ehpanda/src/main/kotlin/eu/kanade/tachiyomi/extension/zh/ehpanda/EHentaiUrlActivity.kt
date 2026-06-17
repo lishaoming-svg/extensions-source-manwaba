@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.extension.en.ehentai
+package eu.kanade.tachiyomi.extension.zh.ehpanda
 
 import android.app.Activity
 import android.content.ActivityNotFoundException

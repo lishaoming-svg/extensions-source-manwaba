@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.extension.en.ehentai
+package eu.kanade.tachiyomi.extension.zh.ehentai
 
 import android.app.Application
 import android.content.SharedPreferences
